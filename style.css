@@ -386,7 +386,7 @@ html, body {
     padding: 0;
     
     /* à¹€à¸žà¸´à¹ˆà¸¡ transform origin à¹ƒà¸«à¹‰à¸­à¸¢à¸¹à¹ˆà¸•à¸£à¸‡à¸à¸¥à¸²à¸‡ visual */
-    padding-top: 1.5%;
+    padding-top: 2%;
     transform-origin: center 58%;
 }
 
@@ -415,6 +415,14 @@ html, body {
     z-index: 200;
     opacity: 0.7;
     box-shadow: 0 0 6px currentColor;
+}
+
+.spark {
+    position: absolute;
+    pointer-events: none;
+    z-index: 199;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 4px currentColor;
 }
 
 .floating-text { 
@@ -480,7 +488,7 @@ button {
     background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dark) 100%);
     color: white; 
     border: none; 
-    border-radius: 50px; 
+    border-radius: 20px; 
     cursor: pointer; 
     box-shadow: var(--shadow-medium);
     transition: all 0.3s ease;
