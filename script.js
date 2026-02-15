@@ -13,17 +13,25 @@ window.supabaseClient = window.supabase.createClient(
 ========================================= */
 
 const overlay = document.getElementById("authOverlay");
-const accountBtn = document.getElementById("accountBtn");
-const closeAuth = document.getElementById("closeAuth");
+const guestButtons = document.getElementById("guestButtons");
+const userButton = document.getElementById("userButton");
+const signupBtn = document.getElementById("signupBtn");
+const loginTopBtn = document.getElementById("loginTopBtn");
+const usernameBtn = document.getElementById("usernameBtn");
+const usernameDisplay = document.getElementById("usernameDisplay");
 
-const authLoggedOut = document.getElementById("authLoggedOut");
-const authLoggedIn = document.getElementById("authLoggedIn");
-const welcomeText = document.getElementById("welcomeText");
+const signupModal = document.getElementById("signupModal");
+const loginModal = document.getElementById("loginModal");
+const profileModal = document.getElementById("profileModal");
 
 const loginBtn = document.getElementById("loginBtn");
 const registerBtn = document.getElementById("registerBtn");
 const logoutBtn = document.getElementById("logoutBtn");
-const viewProfileBtn = document.getElementById("viewProfileBtn");
+
+const switchToLogin = document.getElementById("switchToLogin");
+const switchToSignup = document.getElementById("switchToSignup");
+
+const closeButtons = document.querySelectorAll(".close-modal");
 
 
 /* =========================================
@@ -35,20 +43,56 @@ async function updateUI() {
     const user = data.user;
 
     if (user) {
-        authLoggedOut.classList.add("hidden");
-        authLoggedIn.classList.remove("hidden");
+        // Hide guest buttons, show username button
+        guestButtons.classList.add("hidden");
+        userButton.classList.remove("hidden");
 
         const username = user.email.replace("@school.local", "");
-        welcomeText.textContent = `Welcome, ${username}`;
+        usernameDisplay.textContent = username;
+        
+        // Update profile info
+        document.getElementById("profileUsername").textContent = username;
+        document.getElementById("profileInitial").textContent = username.charAt(0).toUpperCase();
+        
+        // Load user stats
+        await loadUserStats(user.id);
     } else {
-        authLoggedOut.classList.remove("hidden");
-        authLoggedIn.classList.add("hidden");
+        // Show guest buttons, hide username button
+        guestButtons.classList.remove("hidden");
+        userButton.classList.add("hidden");
+    }
+}
+
+async function loadUserStats(userId) {
+    const { data } = await supabaseClient
+        .from("game_history")
+        .select("score, accuracy")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+    if (data && data.length > 0) {
+        // Total games
+        document.getElementById("profileGames").textContent = data.length;
+        
+        // Best score
+        const bestScore = Math.max(...data.map(g => g.score));
+        document.getElementById("profileBestScore").textContent = bestScore;
+        
+        // Average accuracy
+        const avgAccuracy = Math.round(
+            data.reduce((sum, g) => sum + g.accuracy, 0) / data.length
+        );
+        document.getElementById("profileAvgAcc").textContent = avgAccuracy + "%";
+    } else {
+        document.getElementById("profileGames").textContent = "0";
+        document.getElementById("profileBestScore").textContent = "0";
+        document.getElementById("profileAvgAcc").textContent = "0%";
     }
 }
 
 async function register() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+    const username = document.getElementById("signupUsername").value.trim();
+    const password = document.getElementById("signupPassword").value.trim();
 
     if (!username || !password) {
         alert("กรอกข้อมูลให้ครบ");
@@ -75,12 +119,13 @@ async function register() {
     ]);
 
     alert("สมัครสำเร็จ");
+    closeOverlay();
     updateUI();
 }
 
 async function login() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+    const username = document.getElementById("loginUsername").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
 
     if (!username || !password) {
         alert("กรอกข้อมูลให้ครบ");
@@ -99,18 +144,60 @@ async function login() {
         return;
     }
 
-    overlay.classList.add("hidden");
+    closeOverlay();
     updateUI();
 }
 
 async function logout() {
     await supabaseClient.auth.signOut();
+    closeOverlay();
     updateUI();
 }
 
 
 /* =========================================
-   4. PROFILE / DATABASE
+   4. MODAL FUNCTIONS
+========================================= */
+
+function showSignupModal() {
+    overlay.classList.remove("hidden");
+    signupModal.classList.remove("hidden");
+    loginModal.classList.add("hidden");
+    profileModal.classList.add("hidden");
+    
+    // Clear inputs
+    document.getElementById("signupUsername").value = "";
+    document.getElementById("signupPassword").value = "";
+}
+
+function showLoginModal() {
+    overlay.classList.remove("hidden");
+    loginModal.classList.remove("hidden");
+    signupModal.classList.add("hidden");
+    profileModal.classList.add("hidden");
+    
+    // Clear inputs
+    document.getElementById("loginUsername").value = "";
+    document.getElementById("loginPassword").value = "";
+}
+
+function showProfileModal() {
+    overlay.classList.remove("hidden");
+    profileModal.classList.remove("hidden");
+    signupModal.classList.add("hidden");
+    loginModal.classList.add("hidden");
+}
+
+function closeOverlay() {
+    overlay.classList.add("hidden");
+    signupModal.classList.add("hidden");
+    loginModal.classList.add("hidden");
+    profileModal.classList.add("hidden");
+}
+
+
+/* =========================================
+   5. PROFILE / DATABASE
 ========================================= */
 
 async function saveGame(score, accuracy) {
@@ -128,40 +215,45 @@ async function saveGame(score, accuracy) {
     ]);
 }
 
-async function loadHistory() {
-    const { data } = await supabaseClient
-        .from("game_history")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-    console.log(data);
-}
-
 
 /* =========================================
-   5. EVENT LISTENERS
+   6. EVENT LISTENERS
 ========================================= */
 
-accountBtn.onclick = async () => {
-    overlay.classList.remove("hidden");
-    await updateUI();
-};
-
-closeAuth.onclick = () => {
-    overlay.classList.add("hidden");
-};
+signupBtn.onclick = showSignupModal;
+loginTopBtn.onclick = showLoginModal;
+usernameBtn.onclick = showProfileModal;
 
 loginBtn.onclick = login;
 registerBtn.onclick = register;
 logoutBtn.onclick = logout;
 
-viewProfileBtn.onclick = () => {
-    overlay.classList.add("hidden");
-    openProfile(); // ใช้ของคุณ
+switchToLogin.onclick = (e) => {
+    e.preventDefault();
+    showLoginModal();
 };
 
-/* =========================================*/
+switchToSignup.onclick = (e) => {
+    e.preventDefault();
+    showSignupModal();
+};
+
+closeButtons.forEach(btn => {
+    btn.onclick = closeOverlay;
+});
+
+// Close on overlay click (outside modal)
+overlay.onclick = (e) => {
+    if (e.target === overlay) {
+        closeOverlay();
+    }
+};
+
+
+/* =========================================
+   7. GAME CODE
+========================================= */
+
 const CONFIG = {
     gameDuration: 150,
     ruleVisibleTime: 6000,
@@ -247,519 +339,386 @@ function playTone(freq, type, dur, vol = 0.05) {
         gain.connect(audioCtx.destination);
         osc.start(); 
         osc.stop(audioCtx.currentTime + dur);
-    } catch(e) {}
+    } catch (e) {}
 }
 
-// Helper Functions
-// Triangle shape now uses CSS borders instead of SVG
-
-// ========== DYNAMIC DIFFICULTY SYSTEM ==========
-
-/**
- * Sigmoid Curve: ให้ความเร็วเพิ่มแบบ S-curve แทน linear
- * - ช่วงแรก: เพิ่มช้าๆ ให้ผู้เล่นคุ้นเคย
- * - ช่วงกลาง: เพิ่มเร็วขึ้น (sweet spot)
- * - ช่วงท้าย: เพิ่มช้าลง ไม่ให้ chaotic
- */
-function sigmoidCurve(progress) {
-    // progress = 0 ถึง 1 (เวลาที่ผ่านไป)
-    const k = CONFIG.speedCurveSteepness;
-    const mid = CONFIG.speedCurveMidpoint;
+// Dynamic Difficulty System
+function updateDifficulty(isCorrect) {
+    state.recentPerformance.push(isCorrect ? 1 : 0);
+    if (state.recentPerformance.length > 10) state.recentPerformance.shift();
     
-    // Sigmoid formula: 1 / (1 + e^(-k*(x - mid)))
-    const x = progress - mid;
-    return 1 / (1 + Math.exp(-k * x));
-}
-
-/**
- * คำนวณ Accuracy ล่าสุด (10 ครั้งล่าสุด)
- */
-function getRecentAccuracy() {
-    if (state.recentPerformance.length === 0) return CONFIG.targetAccuracy;
-    
-    const correct = state.recentPerformance.filter(x => x === true).length;
-    return correct / state.recentPerformance.length;
-}
-
-/**
- * ปรับความยากแบบ Dynamic ตาม Performance ของผู้เล่น
- * - เล่นดี (Accuracy สูง) → เพิ่มความยาก
- * - เล่นแย่ (Accuracy ต่ำ) → ลดความยาก
- */
-function adjustDifficulty() {
-    // ปรับทุก 3 วินาที
-    if (state.elapsedTime - state.lastAdjustTime < 3) return;
-    state.lastAdjustTime = state.elapsedTime;
-    
-    const accuracy = getRecentAccuracy();
-    const target = CONFIG.targetAccuracy;
-    
-    // คำนวณส่วนต่างจากเป้าหมาย
-    const diff = accuracy - target;
-    
-    // ปรับ difficulty multiplier
-    const adjustment = diff * CONFIG.difficultyAdjustSpeed;
-    state.difficultyMultiplier += adjustment;
-    
-    // จำกัดไว้ในช่วง 0.5 ถึง 1.5
-    state.difficultyMultiplier = Math.max(0.5, Math.min(1.5, state.difficultyMultiplier));
-    
-    // Debug (ถ้าต้องการ)
-    // console.log(`Accuracy: ${(accuracy*100).toFixed(0)}% | Target: ${(target*100).toFixed(0)}% | Difficulty: ${state.difficultyMultiplier.toFixed(2)}x`);
-}
-
-/**
- * คำนวณความเร็วแบบ Sigmoid + Dynamic
- */
-function getCurrentSpeed() {
-    // Warm-up period: 15 วินาทีแรก (ช่วงกฎแรก)
-    const warmupDuration = 15;
-    
-    if (state.elapsedTime <= warmupDuration) {
-        // ช่วง warm-up: ใช้ความเร็วต่ำ
-        return CONFIG.initialSpeed;
+    if (state.recentPerformance.length >= 5) {
+        const recentAccuracy = state.recentPerformance.reduce((a,b) => a+b, 0) / state.recentPerformance.length;
+        const diff = recentAccuracy - CONFIG.targetAccuracy;
+        
+        // ปรับ multiplier ตาม performance
+        state.difficultyMultiplier += diff * CONFIG.difficultyAdjustSpeed;
+        state.difficultyMultiplier = Math.max(0.5, Math.min(1.5, state.difficultyMultiplier));
     }
+}
+
+// Sigmoid Curve สำหรับความยากแบบ S-curve
+function sigmoidCurve(progress, midpoint, steepness) {
+    // progress: 0-1 (เวลาที่ผ่านไป / เวลาทั้งหมด)
+    // midpoint: จุดกลางของ curve (0-1)
+    // steepness: ความชัน - ยิ่งมากยิ่งกระชั้น
     
-    // หลัง warm-up: เร่งความยากขึ้นเรื่อยๆ
-    const postWarmupTime = state.elapsedTime - warmupDuration;
-    const remainingTime = CONFIG.gameDuration - warmupDuration;
-    const progress = Math.min(postWarmupTime / remainingTime, 1);
+    const x = (progress - midpoint) * steepness;
+    return 1 / (1 + Math.exp(-x));
+}
+
+function getCurrentSpeed() {
+    const progress = state.elapsedTime / CONFIG.gameDuration;
+    const baseCurve = sigmoidCurve(progress, CONFIG.speedCurveMidpoint, CONFIG.speedCurveSteepness);
     
-    const sigmoidValue = sigmoidCurve(progress);
+    // Map curve (0-1) to speed range
+    const baseSpeed = CONFIG.initialSpeed + (CONFIG.maxSpeed - CONFIG.initialSpeed) * baseCurve;
     
-    // ความเร็วพื้นฐานจาก time progression
-    const baseSpeed = CONFIG.initialSpeed + (CONFIG.maxSpeed - CONFIG.initialSpeed) * sigmoidValue;
+    // ปรับด้วย difficulty multiplier
+    let adjustedSpeed = baseSpeed * state.difficultyMultiplier;
     
-    // ปรับตาม difficulty multiplier
-    const adjustedSpeed = CONFIG.initialSpeed + (baseSpeed - CONFIG.initialSpeed) * state.difficultyMultiplier;
-    
-    // จำกัดให้อยู่ในช่วงที่กำหนด
+    // Clamp ให้อยู่ในช่วงที่กำหนด
     return Math.max(CONFIG.minSpeed, Math.min(CONFIG.maxSpeed, adjustedSpeed));
 }
 
-/**
- * คำนวณ Spawn Rate แบบ Dynamic ตาม Score และ Performance
- */
 function getCurrentSpawnRate() {
-    // Warm-up period: 15 วินาทีแรก (ช่วงกฎแรก)
-    const warmupDuration = 15;
+    const progress = state.elapsedTime / CONFIG.gameDuration;
+    const baseCurve = sigmoidCurve(progress, CONFIG.speedCurveMidpoint, CONFIG.speedCurveSteepness);
     
-    if (state.elapsedTime <= warmupDuration) {
-        // ช่วง warm-up: spawn ช้า
-        return CONFIG.initialSpawnRate;
-    }
+    // Spawn rate ต้องผกผัน - ยิ่งเร็วยิ่ง spawn บ่อย
+    const baseRate = CONFIG.initialSpawnRate - (CONFIG.initialSpawnRate - CONFIG.minSpawnRate) * baseCurve;
     
-    // หลัง warm-up: spawn เร็วขึ้นเรื่อยๆ
-    const postWarmupTime = state.elapsedTime - warmupDuration;
-    const remainingTime = CONFIG.gameDuration - warmupDuration;
-    const progress = Math.min(postWarmupTime / remainingTime, 1);
+    // ปรับด้วย difficulty multiplier (ผกผัน)
+    let adjustedRate = baseRate / state.difficultyMultiplier;
     
-    const sigmoidValue = sigmoidCurve(progress);
-    
-    // Spawn rate พื้นฐาน (ยิ่งเล่นนาน ยิ่ง spawn เร็ว)
-    const baseRate = CONFIG.initialSpawnRate - (CONFIG.initialSpawnRate - CONFIG.minSpawnRate) * sigmoidValue;
-    
-    // ปรับตาม difficulty multiplier
-    // ยิ่ง difficulty สูง ยิ่ง spawn เร็ว (rate ต่ำ)
-    const adjustedRate = baseRate / state.difficultyMultiplier;
-    
-    // จำกัดให้อยู่ในช่วงที่กำหนด
+    // Clamp
     return Math.max(CONFIG.minSpawnRate, Math.min(CONFIG.maxSpawnRate, adjustedRate));
 }
 
-/**
- * บันทึก Performance (เรียกตอนจัดของแต่ละชิ้น)
- */
-function recordPerformance(isCorrect) {
-    state.recentPerformance.push(isCorrect);
+// Rule System
+function randomRule() {
+    const types = [
+        { attr: 'color', op: 'is' },
+        { attr: 'shape', op: 'is' },
+        { attr: 'label', op: 'is' }
+    ];
     
-    // เก็บแค่ 10 ครั้งล่าสุด
-    if (state.recentPerformance.length > 10) {
-        state.recentPerformance.shift();
-    }
+    const t1 = types[Math.floor(Math.random() * types.length)];
+    let t2;
+    do { t2 = types[Math.floor(Math.random() * types.length)]; } 
+    while (t2.attr === t1.attr);
     
-    // ปรับความยาก
-    adjustDifficulty();
+    let v1, v2;
+    if (t1.attr === 'color') v1 = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)].name;
+    else if (t1.attr === 'shape') v1 = CONFIG.shapes[Math.floor(Math.random() * CONFIG.shapes.length)];
+    else v1 = CONFIG.labels[Math.floor(Math.random() * CONFIG.labels.length)];
+    
+    if (t2.attr === 'color') v2 = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)].name;
+    else if (t2.attr === 'shape') v2 = CONFIG.shapes[Math.floor(Math.random() * CONFIG.shapes.length)];
+    else v2 = CONFIG.labels[Math.floor(Math.random() * CONFIG.labels.length)];
+    
+    return {
+        left: { attr: t1.attr, op: t1.op, value: v1 },
+        right: { attr: t2.attr, op: t2.op, value: v2 }
+    };
 }
 
-// ========== END DYNAMIC DIFFICULTY SYSTEM ==========
-
-function createParticles(x, y, color) {
-    // ลดจาก 12 เป็น 4 particles - less visual noise
-    for (let i = 0; i < 4; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        p.style.backgroundColor = color;
-        p.style.width = '6px'; 
-        p.style.height = '6px';
-        p.style.left = x + 'px'; 
-        p.style.top = y + 'px';
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 40 + 15; // ลดระยะทางการกระเด็น
-        p.animate([
-            { transform: 'translate(0, 0) scale(1)', opacity: 0.7 },
-            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px) scale(0)`, opacity: 0 }
-        ], { duration: 400, easing: 'ease-out' }).onfinish = () => p.remove(); // เร็วขึ้น
-        playArea.appendChild(p);
-    }
+function formatRule(rule) {
+    const thaiAttr = { color: 'สี', shape: 'รูป', label: 'ข้อความ' };
+    const thaiShape = { circle: 'วงกลม', square: 'สี่เหลี่ยม', triangle: 'สามเหลี่ยม' };
     
-    // เพิ่ม subtle glow effect แทน particles เยอะๆ
-    const glow = document.createElement('div');
-    glow.style.position = 'absolute';
-    glow.style.left = (x - 10) + 'px';
-    glow.style.top = (y - 10) + 'px';
-    glow.style.width = '50px';
-    glow.style.height = '50px';
-    glow.style.borderRadius = '50%';
-    glow.style.background = `radial-gradient(circle, ${color}40 0%, transparent 70%)`;
-    glow.style.pointerEvents = 'none';
-    glow.style.zIndex = '199';
-    playArea.appendChild(glow);
+    const leftText = rule.left.attr === 'shape' 
+        ? thaiShape[rule.left.value] 
+        : rule.left.value;
+        
+    const rightText = rule.right.attr === 'shape' 
+        ? thaiShape[rule.right.value] 
+        : rule.right.value;
     
-    glow.animate([
-        { transform: 'scale(0.5)', opacity: 0.8 },
-        { transform: 'scale(1.5)', opacity: 0 }
-    ], { duration: 500, easing: 'ease-out' }).onfinish = () => glow.remove();
+    return `${thaiAttr[rule.left.attr]}${leftText} | ${thaiAttr[rule.right.attr]}${rightText}`;
 }
 
-function showFloatingText(x, y, text, color) {
-    const el = document.createElement('div');
-    el.className = 'floating-text';
-    el.textContent = text;
-    el.style.color = color;
-    el.style.left = x + 'px'; 
-    el.style.top = y + 'px';
-    playArea.appendChild(el);
-    setTimeout(() => el.remove(), 800);
-}
-
-// Rule Generators
-const ruleGens = [
-    { type: 'color', gen: () => {
-        const c = [...CONFIG.colors].sort(() => Math.random() - 0.5);
-        return { type: 'color', left: c[0], right: c[1], text: `${c[0].name} | ${c[1].name}` };
-    }},
-    { type: 'shape', gen: () => {
-        const s = [...CONFIG.shapes].sort(() => Math.random() - 0.5);
-        const n = { circle: 'วงกลม', square: 'สี่เหลี่ยม', triangle: 'สามเหลี่ยม' };
-        return { type: 'shape', left: s[0], right: s[1], text: `${n[s[0]]} | ${n[s[1]]} ` };
-    }},
-    { type: 'label', gen: () => {
-        const l = [...CONFIG.labels].sort(() => Math.random() - 0.5);
-        return { type: 'label', left: l[0], right: l[1], text: `${l[0]} | ${l[1]} ` };
-    }}
-];
-
-// Pop all objects with animation and sound effect
-function popAllObjects() {
-    // สร้างสำเนาของ array เพื่อป้องกันปัญหาจาก concurrent modification
-    const objectsToRemove = [...state.objects];
-    
-    objectsToRemove.forEach((obj, index) => {
-        // Delay แต่ละ object เล็กน้อยเพื่อให้ดูเป็น cascade effect
-        setTimeout(() => {
-            if (!obj.el || !obj.el.parentNode) return; // Skip ถ้า element ถูกลบไปแล้ว
-            
-            // เล่นเสียง pop (แต่ละตัวจะมีเสียงสูงต่างกันเล็กน้อย)
-            const freq = 800 + (index * 50) + Math.random() * 100;
-            playTone(freq, 'sine', 0.08, 0.06);
-            
-            // เพิ่ม animation class
-            obj.el.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            obj.el.style.transform = 'scale(0) rotate(180deg)';
-            obj.el.style.opacity = '0';
-            
-            // สร้าง particle effect เล็กๆ
-            const objCenterX = obj.x + (obj.el.offsetWidth / 2);
-            const objCenterY = obj.y + (obj.el.offsetHeight / 2);
-            
-            // Particle effect แบบเล็กๆ (2 particles ต่อ object)
-            for (let i = 0; i < 2; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                p.style.backgroundColor = obj.color.hex;
-                p.style.width = '4px';
-                p.style.height = '4px';
-                p.style.left = objCenterX + 'px';
-                p.style.top = objCenterY + 'px';
-                
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 25 + 10;
-                
-                p.animate([
-                    { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
-                    { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px) scale(0)`, opacity: 0 }
-                ], { duration: 300, easing: 'ease-out' }).onfinish = () => p.remove();
-                
-                playArea.appendChild(p);
-            }
-            
-            // สร้าง spark effect (ประกายไฟ 8 เส้น)
-            for (let i = 0; i < 8; i++) {
-                const spark = document.createElement('div');
-                spark.className = 'spark';
-                spark.style.left = objCenterX + 'px';
-                spark.style.top = objCenterY + 'px';
-                
-                const angle = (Math.PI * 2 / 8) * i + Math.random() * 0.2; // กระจาย 8 ทิศทาง
-                const length = Math.random() * 35 + 30; // ความยาวของประกาย 30-65px
-                
-                const endX = Math.cos(angle) * length;
-                const endY = Math.sin(angle) * length;
-                
-                // สร้างเส้นประกาย
-                spark.style.width = '3px';
-                spark.style.height = length + 'px';
-                spark.style.background = `linear-gradient(to bottom, ${obj.color.hex}, transparent)`;
-                spark.style.transformOrigin = 'top center';
-                spark.style.transform = `rotate(${angle}rad)`;
-                
-                spark.animate([
-                    { 
-                        opacity: 1, 
-                        transform: `rotate(${angle}rad) translateY(0) scaleY(1)`,
-                        filter: 'brightness(2.5)'
-                    },
-                    { 
-                        opacity: 0, 
-                        transform: `rotate(${angle}rad) translateY(${length * 0.6}px) scaleY(0.2)`,
-                        filter: 'brightness(0.5)'
-                    }
-                ], { 
-                    duration: 350 + Math.random() * 150, 
-                    easing: 'ease-out' 
-                }).onfinish = () => spark.remove();
-                
-                playArea.appendChild(spark);
-            }
-            
-            // ลบ element หลังจาก animation เสร็จ
-            setTimeout(() => {
-                if (obj.el && obj.el.parentNode) {
-                    obj.el.remove();
-                }
-            }, 300);
-            
-        }, index * 30); // Cascade delay 30ms ต่อ object
-    });
-    
-    // Clear objects array
-    state.objects = [];
-}
-
-function setRule() {
+async function setRule() {
     if (state.isGameOver) return;
     
+    const oldRule = state.currentRule;
+    state.currentRule = randomRule();
+    
+    // Clear old objects
+    state.objects.forEach(obj => {
+        obj.el.classList.add('being-sucked');
+        setTimeout(() => obj.el.remove(), 500);
+    });
+    state.objects = [];
+    
+    // Freeze
     state.isFrozen = true;
     freezeOverlay.classList.remove('hidden');
     gameContainer.classList.add('is-frozen');
-    playTone(440, 'sine', 0.2, 0.1);
-
-    const r = ruleGens[Math.floor(Math.random() * ruleGens.length)].gen();
-    state.currentRule = r;
-    ruleEl.textContent = r.text;
+    
+    // Show Rule
+    ruleEl.textContent = formatRule(state.currentRule);
     ruleEl.classList.remove('hidden-rule');
-
-    setTimeout(() => {
-        state.isFrozen = false;
-        freezeOverlay.classList.add('hidden');
-        gameContainer.classList.remove('is-frozen');
+    
+    playTone(523, 'sine', 0.15, 0.06); // C5
+    playTone(659, 'sine', 0.15, 0.06); // E5
+    playTone(784, 'sine', 0.25, 0.06); // G5
+    
+    await new Promise(r => setTimeout(r, CONFIG.freezeDuration));
+    
+    // Unfreeze
+    state.isFrozen = false;
+    freezeOverlay.classList.add('hidden');
+    gameContainer.classList.remove('is-frozen');
+    
+    // Schedule Next Rule
+    state.ruleTime = setTimeout(() => {
+        // Warning
+        alertEl.textContent = '⚠️';
+        alertEl.classList.add('animate-alert');
+        playTone(440, 'triangle', 0.3, 0.08);
+        setTimeout(() => alertEl.classList.remove('animate-alert'), 1200);
         
-        // Pop วัตถุทั้งหมดหลังจาก unfreeze 1 วินาที
-        setTimeout(() => {
-            if (!state.isGameOver) {
-                popAllObjects();
-            }
-        }, 1000);
-        
-        clearTimeout(state.hideTime);
-        state.hideTime = setTimeout(() => { 
-            if(!state.isGameOver && !state.isFrozen) ruleEl.classList.add('hidden-rule'); 
-        }, CONFIG.ruleVisibleTime);
-
-        const nextInterval = Math.random() * 5000 + 12000;
-        state.ruleTime = setTimeout(() => {
-            startRuleWarning();
-        }, nextInterval - CONFIG.ruleChangeWarning);
-        
-    }, CONFIG.freezeDuration);
+        setTimeout(() => setRule(), CONFIG.ruleChangeWarning);
+    }, CONFIG.ruleVisibleTime);
 }
 
-function startRuleWarning() {
+// Object Creation
+function spawnSingle() {
     if (state.isGameOver || state.isFrozen) return;
     
-    ruleWarningBar.style.transition = 'none';
-    ruleWarningBar.style.transform = 'scaleX(0)';
-    setTimeout(() => {
-        ruleWarningBar.style.transition = `transform ${CONFIG.ruleChangeWarning}ms linear`;
-        ruleWarningBar.style.transform = 'scaleX(1)';
-    }, 20);
-
-    alertEl.classList.add('animate-alert');
-    playTone(330, 'triangle', 0.4, 0.08);
-    setTimeout(() => alertEl.classList.remove('animate-alert'), 1000);
-
-    setTimeout(() => {
-        ruleWarningBar.style.transform = 'scaleX(0)';
-        setRule();
-    }, CONFIG.ruleChangeWarning);
-}
-
-// Object Spawning
-function spawnSingle() {
-    if (state.isFrozen) return;
-    const c = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-    const s = CONFIG.shapes[Math.floor(Math.random() * CONFIG.shapes.length)];
-    const l = CONFIG.labels[Math.floor(Math.random() * CONFIG.labels.length)];
+    const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
+    const shape = CONFIG.shapes[Math.floor(Math.random() * CONFIG.shapes.length)];
+    const label = CONFIG.labels[Math.floor(Math.random() * CONFIG.labels.length)];
+    
     const el = document.createElement('div');
-    el.className = `game-object shape-${s}`;
+    el.className = `game-object shape-${shape}`;
     
-    // Store color in data attribute for triangles
-    if (s === 'triangle') {
-        el.dataset.color = c.hex;
-        el.style.setProperty('--triangle-color', c.hex);
+    if (shape === 'triangle') {
+        el.style.setProperty('--triangle-color', color.hex);
     } else {
-        el.style.backgroundColor = c.hex;
+        el.style.background = color.hex;
     }
-    el.textContent = l;
-
-    const x = Math.random() * (playArea.clientWidth - 90) + 10;
-    el.style.left = x + 'px'; 
-    el.style.top = '-90px';
     
-    const obj = { 
-        el, x, y: -90, 
-        vx: 0, vy: 0, 
-        color: c, shape: s, label: l, 
+    el.textContent = label;
+    el.style.left = Math.random() * (playArea.clientWidth - 65) + 'px';
+    el.style.top = -70 + 'px';
+    
+    playArea.appendChild(el);
+    
+    const obj = {
+        el, 
+        x: parseFloat(el.style.left), 
+        y: -70,
+        vx: (Math.random() - 0.5) * 2,
+        vy: 0,
+        color: color.name,
+        shape,
+        label,
         dragging: false,
         beingSucked: false,
-        lastX: x, lastY: -90,
-        grabOffsetX: 0,
-        grabOffsetY: 0
+        dragStartX: 0,
+        dragStartY: 0
     };
-
-
-    const onStart = (e) => {
-        if (state.isFrozen || obj.beingSucked) return;
-        obj.dragging = true;
-        obj.vx = 0; obj.vy = 0;
-        
-        const rect = playArea.getBoundingClientRect();
-        const cx = e.clientX;
-        const cy = e.clientY;
-
-        const currentX = cx - rect.left;
-        const currentY = cy - rect.top;
-
-        // จำระยะที่กดภายในวัตถุ
-        obj.grabOffsetX = currentX - obj.x;
-        obj.grabOffsetY = currentY - obj.y;
-
-        obj.lastX = currentX;
-        obj.lastY = currentY;
-
-
-        el.setPointerCapture(e.pointerId);
-        el.classList.add('dragging');
-    };
-
-    const onMove = (e) => {
-        if (!obj.dragging || state.isFrozen || obj.beingSucked) return;
-        const rect = playArea.getBoundingClientRect();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        const currentX = cx - rect.left;
-        const currentY = cy - rect.top;
-
-        obj.vx = ((currentX - obj.lastX) / 16.67) * CONFIG.throwForce;
-        obj.vy = ((currentY - obj.lastY) / 16.67) * CONFIG.throwForce;
-
-        const maxVelocity = 25;
-        obj.vx = Math.max(-maxVelocity, Math.min(maxVelocity, obj.vx));
-        obj.vy = Math.max(-maxVelocity, Math.min(maxVelocity, obj.vy));
-
-        
-        obj.lastX = currentX;
-        obj.lastY = currentY;
-
-        // คำนวณ offset สำหรับแต่ละรูปร่าง
-        obj.x = currentX - obj.grabOffsetX;
-        obj.y = currentY - obj.grabOffsetY;
-
-        
-        requestAnimationFrame(() => {
-            el.style.left = obj.x + 'px'; 
-            el.style.top = obj.y + 'px';
-        });
-    };
-
-    const onEnd = (e) => {
-        if (!obj.dragging) return;
-        obj.dragging = false; 
-        el.classList.remove('dragging');
-        obj.vx *= 0.7;
-        obj.vy *= 0.7;
-    };
-
-    el.addEventListener('pointerdown', onStart);
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerup', onEnd);
-    el.addEventListener('pointercancel', onEnd);
-
-    playArea.appendChild(el);
+    
     state.objects.push(obj);
+    
+    // Touch/Mouse Events
+    const startDrag = (e) => {
+        if (state.isFrozen || obj.beingSucked) return;
+        e.preventDefault();
+        obj.dragging = true;
+        el.classList.add('dragging');
+        
+        const touch = e.touches ? e.touches[0] : e;
+        obj.dragStartX = touch.clientX - obj.x;
+        obj.dragStartY = touch.clientY - obj.y;
+    };
+    
+    const moveDrag = (e) => {
+        if (!obj.dragging || state.isFrozen) return;
+        e.preventDefault();
+        
+        const touch = e.touches ? e.touches[0] : e;
+        const rect = playArea.getBoundingClientRect();
+        
+        obj.x = touch.clientX - rect.left - obj.dragStartX;
+        obj.y = touch.clientY - rect.top - obj.dragStartY;
+        
+        obj.x = Math.max(0, Math.min(playArea.clientWidth - el.offsetWidth, obj.x));
+        obj.y = Math.max(0, Math.min(playArea.clientHeight - el.offsetHeight, obj.y));
+        
+        el.style.left = obj.x + 'px';
+        el.style.top = obj.y + 'px';
+    };
+    
+    const endDrag = (e) => {
+        if (!obj.dragging) return;
+        e.preventDefault();
+        obj.dragging = false;
+        el.classList.remove('dragging');
+        
+        const touch = e.changedTouches ? e.changedTouches[0] : e;
+        const rect = playArea.getBoundingClientRect();
+        const releaseX = touch.clientX - rect.left;
+        const releaseY = touch.clientY - rect.top;
+        
+        const dx = releaseX - (obj.x + el.offsetWidth / 2);
+        const dy = releaseY - (obj.y + el.offsetHeight / 2);
+        
+        obj.vx = dx * CONFIG.throwForce;
+        obj.vy = dy * CONFIG.throwForce;
+    };
+    
+    el.addEventListener('mousedown', startDrag);
+    el.addEventListener('touchstart', startDrag, { passive: false });
+    
+    document.addEventListener('mousemove', moveDrag);
+    document.addEventListener('touchmove', moveDrag, { passive: false });
+    
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
 }
 
 // Sorting Logic
+function matchesCondition(obj, cond) {
+    if (cond.op === 'is') {
+        if (cond.attr === 'color') return obj.color === cond.value;
+        if (cond.attr === 'shape') return obj.shape === cond.value;
+        if (cond.attr === 'label') return obj.label === cond.value;
+    }
+    return false;
+}
+
+function showFloatingText(x, y, text, color) {
+    const ft = document.createElement('div');
+    ft.className = 'floating-text';
+    ft.textContent = text;
+    ft.style.left = x + 'px';
+    ft.style.top = y + 'px';
+    ft.style.color = color;
+    playArea.appendChild(ft);
+    setTimeout(() => ft.remove(), 1000);
+}
+
+function createParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        p.style.background = color;
+        p.style.width = (Math.random() * 6 + 4) + 'px';
+        p.style.height = p.style.width;
+        playArea.appendChild(p);
+        
+        const angle = (Math.PI * 2 * i) / count;
+        const speed = Math.random() * 3 + 2;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        let px = x, py = y;
+        const interval = setInterval(() => {
+            px += vx;
+            py += vy;
+            p.style.left = px + 'px';
+            p.style.top = py + 'px';
+            p.style.opacity = parseFloat(p.style.opacity || 1) - 0.05;
+            if (parseFloat(p.style.opacity) <= 0) {
+                clearInterval(interval);
+                p.remove();
+            }
+        }, 16);
+    }
+}
+
+function createSparks(x, y, color, count = 6) {
+    for (let i = 0; i < count; i++) {
+        const s = document.createElement('div');
+        s.className = 'spark';
+        s.style.left = x + 'px';
+        s.style.top = y + 'px';
+        s.style.background = color;
+        s.style.width = (Math.random() * 3 + 2) + 'px';
+        s.style.height = (Math.random() * 15 + 10) + 'px';
+        playArea.appendChild(s);
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 3;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        let px = x, py = y, rotation = 0;
+        const interval = setInterval(() => {
+            px += vx;
+            py += vy;
+            rotation += 15;
+            s.style.left = px + 'px';
+            s.style.top = py + 'px';
+            s.style.transform = `rotate(${rotation}deg)`;
+            s.style.opacity = parseFloat(s.style.opacity || 1) - 0.06;
+            if (parseFloat(s.style.opacity) <= 0) {
+                clearInterval(interval);
+                s.remove();
+            }
+        }, 16);
+    }
+}
+
 function handleSort(obj, zone) {
-    const r = state.currentRule;
-    let result = '';
-
-    let target = null;
-    if (r.type === 'color') {
-        if (obj.color.name === r.left.name) target = 'left';
-        else if (obj.color.name === r.right.name) target = 'right';
-    } else if (r.type === 'shape') {
-        if (obj.shape === r.left) target = 'left';
-        else if (obj.shape === r.right) target = 'right';
-    } else if (r.type === 'label') {
-        if (obj.label === r.left) target = 'left';
-        else if (obj.label === r.right) target = 'right';
+    let result = null;
+    
+    if (zone === 'center') {
+        const leftMatch = matchesCondition(obj, state.currentRule.left);
+        const rightMatch = matchesCondition(obj, state.currentRule.right);
+        
+        if (!leftMatch && !rightMatch) {
+            result = 'trash-correct';
+        } else {
+            result = 'trash-incorrect';
+        }
+    } else {
+        const targetCond = zone === 'left' ? state.currentRule.left : state.currentRule.right;
+        const match = matchesCondition(obj, targetCond);
+        
+        if (match) {
+            result = 'correct';
+        } else {
+            result = 'incorrect';
+        }
     }
-
-    if (zone === 'left') {
-        if (target === 'left') result = 'correct';
-        else result = 'incorrect';
-    } else if (zone === 'right') {
-        if (target === 'right') result = 'correct';
-        else result = 'incorrect';
-    } else if (zone === 'center') {
-        if (target === null) result = 'trash-correct';
-        else result = 'trash-incorrect';
-    }
-
-    // บันทึก Performance สำหรับ Dynamic Difficulty
-    const isCorrect = (result === 'correct' || result === 'trash-correct');
-    recordPerformance(isCorrect);
-
+    
+    // Update score & stats
     if (result === 'correct') {
-        state.score += 5; state.stats.correct++;
-        playTone(850, 'sine', 0.1, 0.1);
-        setTimeout(() => {
-            playTone(1100, 'sine', 0.1, 0.1);
-        }, 80);
-        createParticles(obj.x + 30, obj.y + 30, obj.color.hex);
-        showFloatingText(obj.x, playArea.clientHeight - 80, "+5", "#6AB187"); // Medical Green
+        state.score += 5; 
+        state.stats.correct++;
+        updateDifficulty(true);
+        
+        playTone(660, 'sine', 0.12, 0.05);
+        setTimeout(() => playTone(880, 'sine', 0.15, 0.05), 60);
+        
+        createParticles(obj.x + 32, playArea.clientHeight - 80, "#6AB187", 10); // Mint Green
+        createSparks(obj.x + 32, playArea.clientHeight - 80, "#B3DDC4", 8);
+        showFloatingText(obj.x, playArea.clientHeight - 80, "+5", "#6AB187"); // Mint Green
+        
     } else if (result === 'incorrect') {
-        state.score = Math.max(0, state.score - 2); state.stats.incorrect++;
-        playTone(180, 'sawtooth', 0.15, 0.08);
+        state.score = Math.max(0, state.score - 2); 
+        state.stats.incorrect++;
+        updateDifficulty(false);
+        
+        playTone(196, 'sawtooth', 0.2, 0.08);
+        
+        createParticles(obj.x + 32, playArea.clientHeight - 80, "#D67C7C", 8); // Soft Red
         showFloatingText(obj.x, playArea.clientHeight - 80, "-2", "#D67C7C"); // Soft Red
+        
     } else if (result === 'trash-correct') {
-        state.score += 1;
-        playTone(850, 'sine', 0.1, 0.1);
+        state.score += 2; 
+        state.stats.correct++;
+        updateDifficulty(true);
+        
+        playTone(523, 'triangle', 0.12, 0.04);
         setTimeout(() => {
-            playTone(1100, 'sine', 0.1, 0.1);
+            playTone(587, 'triangle', 0.1, 0.04);
         }, 80);
         showFloatingText(obj.x, playArea.clientHeight - 80, "+1", "#5B8FB9"); // Medical Blue
     } else if (result === 'trash-incorrect') {
@@ -1007,4 +966,5 @@ document.getElementById('start-btn').addEventListener('click', startGame);
 document.getElementById('restart-btn').addEventListener('click', startGame);
 
 
+// Initialize UI on load
 updateUI();
