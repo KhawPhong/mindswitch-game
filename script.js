@@ -1,3 +1,169 @@
+/* =========================================
+   1. SUPABASE INIT
+========================================= */
+
+const supabase = window.supabase.createClient(
+  "https://hzkdjkhigdzajiirqrfp.supabase.co",
+  "sb_publishable_k58FYoplPJWXFlvqAdoj4Q_gdRIK74m"
+);
+
+
+/* =========================================
+   2. DOM CACHE
+========================================= */
+
+const overlay = document.getElementById("authOverlay");
+const accountBtn = document.getElementById("accountBtn");
+const closeAuth = document.getElementById("closeAuth");
+
+const authLoggedOut = document.getElementById("authLoggedOut");
+const authLoggedIn = document.getElementById("authLoggedIn");
+const welcomeText = document.getElementById("welcomeText");
+
+const loginBtn = document.getElementById("loginBtn");
+const registerBtn = document.getElementById("registerBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const viewProfileBtn = document.getElementById("viewProfileBtn");
+
+
+/* =========================================
+   3. AUTH SYSTEM
+========================================= */
+
+async function updateUI() {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+
+    if (user) {
+        authLoggedOut.classList.add("hidden");
+        authLoggedIn.classList.remove("hidden");
+
+        const username = user.email.replace("@school.local", "");
+        welcomeText.textContent = `Welcome, ${username}`;
+    } else {
+        authLoggedOut.classList.remove("hidden");
+        authLoggedIn.classList.add("hidden");
+    }
+}
+
+async function register() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const classroom = document.getElementById("classroom").value.trim();
+
+    if (!username || !password) {
+        alert("กรอกข้อมูลให้ครบ");
+        return;
+    }
+
+    const email = `${username}@school.local`;
+
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password
+    });
+
+    if (error) {
+        alert(error.message);
+        return;
+    }
+
+    await supabase.from("profiles").insert([
+        {
+            id: data.user.id,
+            username,
+            classroom
+        }
+    ]);
+
+    alert("สมัครสำเร็จ");
+    updateUI();
+}
+
+async function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+
+    if (!username || !password) {
+        alert("กรอกข้อมูลให้ครบ");
+        return;
+    }
+
+    const email = `${username}@school.local`;
+
+    const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    if (error) {
+        alert("ชื่อผู้ใช้หรือรหัสผ่านผิด");
+        return;
+    }
+
+    overlay.classList.add("hidden");
+    updateUI();
+}
+
+async function logout() {
+    await supabase.auth.signOut();
+    updateUI();
+}
+
+
+/* =========================================
+   4. PROFILE / DATABASE
+========================================= */
+
+async function saveGame(score, accuracy) {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+
+    if (!user) return;
+
+    await supabase.from("game_history").insert([
+        {
+            user_id: user.id,
+            score,
+            accuracy
+        }
+    ]);
+}
+
+async function loadHistory() {
+    const { data } = await supabase
+        .from("game_history")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+    console.log(data);
+}
+
+
+/* =========================================
+   5. EVENT LISTENERS
+========================================= */
+
+accountBtn.onclick = async () => {
+    overlay.classList.remove("hidden");
+    await updateUI();
+};
+
+closeAuth.onclick = () => {
+    overlay.classList.add("hidden");
+};
+
+loginBtn.onclick = login;
+registerBtn.onclick = register;
+logoutBtn.onclick = logout;
+
+viewProfileBtn.onclick = () => {
+    overlay.classList.add("hidden");
+    openProfile(); // ใช้ของคุณ
+};
+
+/* =========================================*/
 const CONFIG = {
     gameDuration: 150,
     ruleVisibleTime: 6000,
@@ -828,8 +994,12 @@ function endGame() {
     const total = state.stats.correct + state.stats.incorrect;
     document.getElementById('res-score').textContent = state.score;
     document.getElementById('res-acc').textContent = (total > 0 ? Math.round((state.stats.correct / total) * 100) : 0) + '%';
+    
+    saveGame(finalScore, finalAccuracy);
 }
 
 // Event Listeners
 document.getElementById('start-btn').addEventListener('click', startGame);
 document.getElementById('restart-btn').addEventListener('click', startGame);
+
+updateUI();
