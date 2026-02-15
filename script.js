@@ -256,7 +256,7 @@ overlay.onclick = (e) => {
 
 const CONFIG = {
     gameDuration: 150,
-    ruleVisibleTime: 6000,
+    ruleVisibleTime: 12000,      // เพิ่มจาก 6000 เป็น 12000 (12 วินาที)
     ruleChangeWarning: 3000,
     freezeDuration: 2500,
     
@@ -397,34 +397,42 @@ function getCurrentSpawnRate() {
 
 // Rule System
 function randomRule() {
-    const types = [
-        { attr: 'color', op: 'is' },
-        { attr: 'shape', op: 'is' },
-        { attr: 'label', op: 'is' }
-    ];
+    const types = ['color', 'shape', 'label'];
     
-    const t1 = types[Math.floor(Math.random() * types.length)];
-    let t2;
-    do { t2 = types[Math.floor(Math.random() * types.length)]; } 
-    while (t2.attr === t1.attr);
+    // สุ่มประเภทเดียว (color, shape, หรือ label)
+    const selectedType = types[Math.floor(Math.random() * types.length)];
     
     let v1, v2;
-    if (t1.attr === 'color') v1 = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)].name;
-    else if (t1.attr === 'shape') v1 = CONFIG.shapes[Math.floor(Math.random() * CONFIG.shapes.length)];
-    else v1 = CONFIG.labels[Math.floor(Math.random() * CONFIG.labels.length)];
     
-    if (t2.attr === 'color') v2 = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)].name;
-    else if (t2.attr === 'shape') v2 = CONFIG.shapes[Math.floor(Math.random() * CONFIG.shapes.length)];
-    else v2 = CONFIG.labels[Math.floor(Math.random() * CONFIG.labels.length)];
+    // สุ่ม 2 ค่าที่ต่างกันในประเภทเดียวกัน
+    if (selectedType === 'color') {
+        const colors = [...CONFIG.colors];
+        const idx1 = Math.floor(Math.random() * colors.length);
+        v1 = colors[idx1].name;
+        colors.splice(idx1, 1);
+        v2 = colors[Math.floor(Math.random() * colors.length)].name;
+    } else if (selectedType === 'shape') {
+        const shapes = [...CONFIG.shapes];
+        const idx1 = Math.floor(Math.random() * shapes.length);
+        v1 = shapes[idx1];
+        shapes.splice(idx1, 1);
+        v2 = shapes[Math.floor(Math.random() * shapes.length)];
+    } else {
+        const labels = [...CONFIG.labels];
+        const idx1 = Math.floor(Math.random() * labels.length);
+        v1 = labels[idx1];
+        labels.splice(idx1, 1);
+        v2 = labels[Math.floor(Math.random() * labels.length)];
+    }
     
     return {
-        left: { attr: t1.attr, op: t1.op, value: v1 },
-        right: { attr: t2.attr, op: t2.op, value: v2 }
+        left: { attr: selectedType, op: 'is', value: v1 },
+        right: { attr: selectedType, op: 'is', value: v2 }
     };
 }
 
 function formatRule(rule) {
-    const thaiAttr = { color: 'สี', shape: 'รูป', label: 'ข้อความ' };
+    const thaiAttr = { color: 'สี', shape: 'รูป', label: '' };
     const thaiShape = { circle: 'วงกลม', square: 'สี่เหลี่ยม', triangle: 'สามเหลี่ยม' };
     
     const leftText = rule.left.attr === 'shape' 
@@ -435,21 +443,19 @@ function formatRule(rule) {
         ? thaiShape[rule.right.value] 
         : rule.right.value;
     
-    return `${thaiAttr[rule.left.attr]}${leftText} | ${thaiAttr[rule.right.attr]}${rightText}`;
+    // สำหรับ label ไม่ต้องมีคำนำหน้า
+    const leftPrefix = rule.left.attr === 'label' ? '' : thaiAttr[rule.left.attr];
+    const rightPrefix = rule.right.attr === 'label' ? '' : thaiAttr[rule.right.attr];
+    
+    return `${leftPrefix}${leftText} | ${rightPrefix}${rightText}`;
 }
 
 async function setRule() {
     if (state.isGameOver) return;
     
     const oldRule = state.currentRule;
+    const oldObjects = [...state.objects]; // เก็บ objects เก่าไว้
     state.currentRule = randomRule();
-    
-    // Clear old objects
-    state.objects.forEach(obj => {
-        obj.el.classList.add('being-sucked');
-        setTimeout(() => obj.el.remove(), 500);
-    });
-    state.objects = [];
     
     // Freeze
     state.isFrozen = true;
@@ -471,8 +477,44 @@ async function setRule() {
     freezeOverlay.classList.add('hidden');
     gameContainer.classList.remove('is-frozen');
     
+    // รอ 300ms หลัง unfreeze แล้วค่อยลบ objects เก่า
+    setTimeout(() => {
+        oldObjects.forEach(obj => {
+            // หาสี hex จากชื่อสี
+            const colorObj = CONFIG.colors.find(c => c.name === obj.color);
+            const colorHex = colorObj ? colorObj.hex : '#B3D9FF';
+            
+            // คำนวณตำแหน่งกลาง object
+            const centerX = obj.x + (obj.el.offsetWidth / 2);
+            const centerY = obj.y + (obj.el.offsetHeight / 2);
+            
+            // สร้าง particles ระเบิด
+            createParticles(centerX, centerY, colorHex, 12);
+            
+            // สร้าง sparks ระเบิด
+            createSparks(centerX, centerY, colorHex, 8);
+            
+            // เสียงระเบิดเบาๆ
+            playTone(200 + Math.random() * 100, 'sawtooth', 0.1, 0.03);
+            
+            // ลบ element ทันที
+            obj.el.remove();
+        });
+        state.objects = state.objects.filter(o => !oldObjects.includes(o));
+    }, 300);
+    
+    // ซ่อนกฏหลังจาก 3 วินาที
+    setTimeout(() => {
+        if (!state.isGameOver) {
+            ruleEl.classList.add('hidden-rule');
+        }
+    }, 3000);
+    
     // Schedule Next Rule
     state.ruleTime = setTimeout(() => {
+        // แสดงกฏอีกครั้งก่อนเปลี่ยน
+        ruleEl.classList.remove('hidden-rule');
+        
         // Warning
         alertEl.textContent = '⚠️';
         alertEl.classList.add('animate-alert');
@@ -518,7 +560,11 @@ function spawnSingle() {
         dragging: false,
         beingSucked: false,
         dragStartX: 0,
-        dragStartY: 0
+        dragStartY: 0,
+        // สำหรับ velocity tracking
+        lastX: parseFloat(el.style.left),
+        lastY: -70,
+        lastTime: Date.now()
     };
     
     state.objects.push(obj);
@@ -531,8 +577,16 @@ function spawnSingle() {
         el.classList.add('dragging');
         
         const touch = e.touches ? e.touches[0] : e;
-        obj.dragStartX = touch.clientX - obj.x;
-        obj.dragStartY = touch.clientY - obj.y;
+        const rect = playArea.getBoundingClientRect();
+        
+        // คำนวณ offset ระหว่างจุดที่คลิกกับมุมบนซ้ายของ object
+        obj.dragStartX = touch.clientX - rect.left - obj.x;
+        obj.dragStartY = touch.clientY - rect.top - obj.y;
+        
+        // รีเซ็ต velocity tracking
+        obj.lastX = obj.x;
+        obj.lastY = obj.y;
+        obj.lastTime = Date.now();
     };
     
     const moveDrag = (e) => {
@@ -542,9 +596,16 @@ function spawnSingle() {
         const touch = e.touches ? e.touches[0] : e;
         const rect = playArea.getBoundingClientRect();
         
+        // เก็บตำแหน่งเก่าสำหรับคำนวณ velocity
+        obj.lastX = obj.x;
+        obj.lastY = obj.y;
+        obj.lastTime = Date.now();
+        
+        // คำนวณตำแหน่งใหม่โดยรักษา offset ที่คลิกไว้
         obj.x = touch.clientX - rect.left - obj.dragStartX;
         obj.y = touch.clientY - rect.top - obj.dragStartY;
         
+        // จำกัดให้อยู่ในพื้นที่เกม
         obj.x = Math.max(0, Math.min(playArea.clientWidth - el.offsetWidth, obj.x));
         obj.y = Math.max(0, Math.min(playArea.clientHeight - el.offsetHeight, obj.y));
         
@@ -558,16 +619,23 @@ function spawnSingle() {
         obj.dragging = false;
         el.classList.remove('dragging');
         
-        const touch = e.changedTouches ? e.changedTouches[0] : e;
-        const rect = playArea.getBoundingClientRect();
-        const releaseX = touch.clientX - rect.left;
-        const releaseY = touch.clientY - rect.top;
+        // คำนวณ velocity จากการเคลื่อนที่ล่าสุด
+        const now = Date.now();
+        const dt = Math.max(1, now - obj.lastTime); // ป้องกันหารด้วย 0
+        const dx = obj.x - obj.lastX;
+        const dy = obj.y - obj.lastY;
         
-        const dx = releaseX - (obj.x + el.offsetWidth / 2);
-        const dy = releaseY - (obj.y + el.offsetHeight / 2);
+        // คำนวณความเร็ว (pixels per millisecond) แล้วคูณด้วยค่าคงที่
+        obj.vx = (dx / dt) * 16 * 1.2; // 16ms ≈ 1 frame, 1.2 = throw multiplier
+        obj.vy = (dy / dt) * 16 * 0.8; // ลด multiplier สำหรับแนวตั้งเพื่อไม่ให้ตกเร็วเกินไป
         
-        obj.vx = dx * CONFIG.throwForce;
-        obj.vy = dy * CONFIG.throwForce;
+        // จำกัดความเร็วสูงสุดเพื่อไม่ให้โยนแรงเกินไป
+        const maxVelocity = 15;
+        const speed = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy);
+        if (speed > maxVelocity) {
+            obj.vx = (obj.vx / speed) * maxVelocity;
+            obj.vy = (obj.vy / speed) * maxVelocity;
+        }
     };
     
     el.addEventListener('mousedown', startDrag);
