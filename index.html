@@ -3,11 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MindSwitch: The Memory Sprint</title>
+    <title>MindSwitch</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Auth Buttons (Top Right) -->
+    <div id="authButtonsContainer">
+        <!-- When NOT logged in -->
+        <div id="guestButtons" class="hidden">
+            <button id="signupBtn" class="auth-top-btn signup-btn">Sign Up</button>
+            <button id="loginTopBtn" class="auth-top-btn login-btn">Log In</button>
+        </div>
+        
+        <!-- When logged in -->
+        <div id="userButton" class="hidden">
+            <button id="usernameBtn" class="auth-top-btn username-btn">
+                <span id="usernameDisplay"></span>
+            </button>
+        </div>
+    </div>
+
     <div id="game-container">
         <div class="lane-divider left-divider"></div>   
         <div class="lane-divider right-divider"></div>
@@ -78,39 +94,98 @@
         </div>
     </div>
 
-    <button id="accountBtn">Account</button>
-
-    <div id="authOverlay" class="overlay hidden">
-        <div class="auth-box">
-
-            <!-- SECTION: NOT LOGGED IN -->
-            <div id="authLoggedOut">
-                <h2>Account</h2>
-
-                <input type="text" id="username" placeholder="Username">
-                <input type="password" id="password" placeholder="Password">
-
-                <div class="auth-buttons">
-                    <button id="loginBtn">Login</button>
-                    <button id="registerBtn">Register</button>
+    <!-- Auth Overlay -->
+    <div id="authOverlay" class="auth-overlay hidden">
+        <div class="auth-modal">
+            <!-- Sign Up Modal -->
+            <div id="signupModal" class="auth-content hidden">
+                <div class="auth-header">
+                    <h2>สร้างบัญชีใหม่</h2>
+                    <button class="close-modal" data-close="signup">×</button>
+                </div>
+                
+                <div class="auth-body">
+                    <div class="input-group">
+                        <label>ชื่อผู้ใช้</label>
+                        <input type="text" id="signupUsername" placeholder="กรอกชื่อผู้ใช้">
+                    </div>
+                    <div class="input-group">
+                        <label>รหัสผ่าน</label>
+                        <input type="password" id="signupPassword" placeholder="กรอกรหัสผ่าน">
+                    </div>
+                    
+                    <button id="registerBtn" class="auth-submit-btn">สมัครสมาชิก</button>
+                    
+                    <div class="auth-footer">
+                        <span>มีบัญชีอยู่แล้ว? </span>
+                        <a href="#" id="switchToLogin">เข้าสู่ระบบ</a>
+                    </div>
                 </div>
             </div>
 
-            <!-- SECTION: LOGGED IN -->
-            <div id="authLoggedIn" class="hidden">
-                <h2 id="welcomeText"></h2>
-
-                <button id="viewProfileBtn">View Profile</button>
-                <button id="logoutBtn">Logout</button>
+            <!-- Login Modal -->
+            <div id="loginModal" class="auth-content hidden">
+                <div class="auth-header">
+                    <h2>เข้าสู่ระบบ</h2>
+                    <button class="close-modal" data-close="login">×</button>
+                </div>
+                
+                <div class="auth-body">
+                    <div class="input-group">
+                        <label>ชื่อผู้ใช้</label>
+                        <input type="text" id="loginUsername" placeholder="กรอกชื่อผู้ใช้">
+                    </div>
+                    <div class="input-group">
+                        <label>รหัสผ่าน</label>
+                        <input type="password" id="loginPassword" placeholder="กรอกรหัสผ่าน">
+                    </div>
+                    
+                    <button id="loginBtn" class="auth-submit-btn">เข้าสู่ระบบ</button>
+                    
+                    <div class="auth-footer">
+                        <span>ยังไม่มีบัญชี? </span>
+                        <a href="#" id="switchToSignup">สมัครสมาชิก</a>
+                    </div>
+                </div>
             </div>
 
-            <button id="closeAuth">Close</button>
-
+            <!-- Profile Modal -->
+            <div id="profileModal" class="auth-content hidden">
+                <div class="auth-header">
+                    <h2>โปรไฟล์</h2>
+                    <button class="close-modal" data-close="profile">×</button>
+                </div>
+                
+                <div class="auth-body">
+                    <div class="profile-info">
+                        <div class="profile-avatar">
+                            <span id="profileInitial">U</span>
+                        </div>
+                        <h3 id="profileUsername">Username</h3>
+                    </div>
+                    
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="profileGames">0</div>
+                            <div class="stat-label">เกมที่เล่น</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="profileBestScore">0</div>
+                            <div class="stat-label">คะแนนสูงสุด</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="profileAvgAcc">0%</div>
+                            <div class="stat-label">ความแม่นยำเฉลี่ย</div>
+                        </div>
+                    </div>
+                    
+                    <button id="logoutBtn" class="auth-submit-btn logout-btn">ออกจากระบบ</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="script.js"></script>
 </body>
-
 </html>
