@@ -413,7 +413,7 @@ const CONFIG = {
     
     // Physics Config
     friction: 0.92,
-    throwForce: 1,
+    throwForce: 0.5,
     
     // Gravity Settings
     gravityStrength: 1.2,
@@ -739,14 +739,14 @@ function spawnSingle() {
         const now = Date.now();
         const dt = Math.max(now - obj.lastTime, 1);
         
-        obj.vx = (obj.x - obj.lastX) / dt * 8; 
-        obj.vy = (obj.y - obj.lastY) / dt * 8;
+        obj.vx = (obj.x - obj.lastX) / dt * 1.8; 
+        obj.vy = (obj.y - obj.lastY) / dt * 1.8;
 
-        const maxS = 25;
+        const maxS = 10;
         obj.vx = Math.max(Math.min(obj.vx, maxS), -maxS);
         obj.vy = Math.max(Math.min(obj.vy, maxS), -maxS);
-
-        if (obj.vy < -15) obj.vy = -15;
+        
+        if (obj.vy < -10) obj.vy = -10;
 
         obj.dragging = false;
         el.classList.remove('dragging');
@@ -1041,6 +1041,7 @@ function loop(now) {
                 const nearBottom = obj.y > playArea.clientHeight * 0.5;
                 
                 if (!nearBottom) {
+                    // ด้านบน - ให้มี bounce เบาๆ
                     if (obj.x <= 0) {
                         obj.x = 0;
                         obj.vx = Math.abs(obj.vx) * 0.1; 
@@ -1051,7 +1052,8 @@ function loop(now) {
                         if(obj.vx < -2) obj.vx = -2;
                     }
                 } else {
-                    obj.vx *= 0.85;
+                    // บริเวณหลุมดำ - ลด horizontal velocity และไม่ bounce
+                    obj.vx *= 0.9; // เพิ่มจาก 0.85 เป็น 0.9 เพื่อให้ค่อยๆ ช้าลง
                     
                     if (obj.x <= 0) {
                         obj.x = 0;
