@@ -912,7 +912,7 @@ function handleSort(obj, zone) {
         setTimeout(() => {
             playTone(587, 'triangle', 0.1, 0.04);
         }, 80);
-        showFloatingText(obj.x, playArea.clientHeight - 80, "+1", "#5B8FB9"); // Medical Blue
+        showFloatingText(obj.x, playArea.clientHeight - 80, "+2", "#5B8FB9"); // Medical Blue
     } else if (result === 'trash-incorrect') {
         state.score = Math.max(0, state.score - 2); state.stats.incorrect++;
         playTone(180, 'sawtooth', 0.15, 0.08);
@@ -1193,4 +1193,5 @@ document.getElementById('restart-btn').addEventListener('click', startGame);
 updateUI();
 
 document.getElementById('authButtonsContainer').style.display = 'flex';
+
 document.getElementById('leaderboardButtonContainer').style.display = 'block';
