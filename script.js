@@ -745,7 +745,7 @@ function spawnSingle() {
         const maxS = 10;
         obj.vx = Math.max(Math.min(obj.vx, maxS), -maxS);
         obj.vy = Math.max(Math.min(obj.vy, maxS), -maxS);
-        
+
         if (obj.vy < -10) obj.vy = -10;
 
         obj.dragging = false;
@@ -1193,5 +1193,48 @@ document.getElementById('restart-btn').addEventListener('click', startGame);
 updateUI();
 
 document.getElementById('authButtonsContainer').style.display = 'flex';
-
 document.getElementById('leaderboardButtonContainer').style.display = 'block';
+
+/* =========================================
+   ANNOUNCEMENT SYSTEM
+========================================= */
+
+// ตั้งเวลาปิดกิจกรรม - 00:00 น. วันที่ 19 กุมภาพันธ์ 2026
+const EVENT_END_DATE = new Date('2026-02-19T00:00:00');
+
+const CLOSED_MESSAGE = '🏆 ขอบคุณที่เข้าร่วมกิจกรรม MindSwitch Challenge! • ขอให้ทุกคนโชคดีและเพิ่มสมาธิไปด้วยกัน 💪 • หากเล่นหลังจากนี้จะไม่นับคะแนนเข้า Leaderboard';
+
+let isEventActive = true;
+
+function checkEventStatus() {
+    const now = new Date();
+    const banner = document.getElementById('announcementBanner');
+    const text = document.getElementById('announcementText');
+    
+    if (now >= EVENT_END_DATE) {
+        // กิจกรรมปิดแล้ว - แสดง banner
+        isEventActive = false;
+        banner.classList.add('show');
+        text.textContent = CLOSED_MESSAGE;
+    } else {
+        // กิจกรรมยังเปิดอยู่ - ซ่อน banner
+        isEventActive = true;
+        banner.classList.remove('show');
+    }
+}
+
+// Override saveGame function เพื่อไม่บันทึกคะแนนหลังกิจกรรมปิด
+const originalSaveGame = saveGame;
+saveGame = function(score, accuracy) {
+    if (!isEventActive) {
+        console.log('กิจกรรมปิดแล้ว - ไม่บันทึกคะแนนเข้า Leaderboard');
+        return; // ไม่บันทึกคะแนน
+    }
+    originalSaveGame(score, accuracy);
+};
+
+// เช็คสถานะทันทีตอนโหลดหน้า
+checkEventStatus();
+
+// เช็คสถานะทุกๆ 30 วินาที
+setInterval(checkEventStatus, 30000);
